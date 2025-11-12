@@ -180,26 +180,34 @@ This means: encrypt(encrypt(data, key), key) = data
 */
 
 // Simple Base64 encoding
+// Base64 works by converting 3 bytes (24 bits) into 4 characters (24 bits = 4 × 6 bits)
 fn base64_encode(input: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut result = String::new();
     
+    // Process input 3 bytes at a time
+    // chunks(3) splits the input into groups of 3 bytes
+    // Example: [72, 101, 108, 108, 111] becomes chunks: [72, 101, 108], [108, 111]
     for chunk in input.chunks(3) {
-        let b1 = chunk[0];
-        let b2 = chunk.get(1).copied().unwrap_or(0);
-        let b3 = chunk.get(2).copied().unwrap_or(0);
+        let b1 = chunk[0];                           // First byte always exists
+        let b2 = chunk.get(1).copied().unwrap_or(0); // Second byte might not exist (use 0 if missing)
+        let b3 = chunk.get(2).copied().unwrap_or(0); // Third byte might not exist (use 0 if missing)
         
-        result.push(CHARS[(b1 >> 2) as usize] as char);
-        result.push(CHARS[(((b1 & 0x03) << 4) | (b2 >> 4)) as usize] as char);
+        // Take 3 bytes (24 bits) and split into 4 groups of 6 bits each
+        // Each 6-bit group becomes one Base64 character
+        result.push(CHARS[(b1 >> 2) as usize] as char);                         // First 6 bits of b1
+        result.push(CHARS[(((b1 & 0x03) << 4) | (b2 >> 4)) as usize] as char); // Last 2 bits of b1 + first 4 bits of b2
         
+        // If we had a second byte, encode it; otherwise use padding '='
         if chunk.len() > 1 {
-            result.push(CHARS[(((b2 & 0x0F) << 2) | (b3 >> 6)) as usize] as char);
+            result.push(CHARS[(((b2 & 0x0F) << 2) | (b3 >> 6)) as usize] as char); // Last 4 bits of b2 + first 2 bits of b3
         } else {
             result.push('=');
         }
         
+        // If we had a third byte, encode it; otherwise use padding '='
         if chunk.len() > 2 {
-            result.push(CHARS[(b3 & 0x3F) as usize] as char);
+            result.push(CHARS[(b3 & 0x3F) as usize] as char); // Last 6 bits of b3
         } else {
             result.push('=');
         }
@@ -209,21 +217,24 @@ fn base64_encode(input: &[u8]) -> String {
 }
 
 // Simple Base64 decoding
+// Reverse of encoding: converts 4 Base64 characters back into 3 bytes
 fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
     let input = input.trim();
     
+    // Base64 always outputs in groups of 4 characters
     if input.len() % 4 != 0 {
         return Err("Invalid Base64 length".to_string());
     }
     
+    // Convert each Base64 character to its 6-bit value (0-63)
     let char_to_value = |c: char| -> Result<u8, String> {
         match c {
-            'A'..='Z' => Ok((c as u8) - b'A'),
-            'a'..='z' => Ok((c as u8) - b'a' + 26),
-            '0'..='9' => Ok((c as u8) - b'0' + 52),
+            'A'..='Z' => Ok((c as u8) - b'A'),      // A=0, B=1, ..., Z=25
+            'a'..='z' => Ok((c as u8) - b'a' + 26), // a=26, b=27, ..., z=51
+            '0'..='9' => Ok((c as u8) - b'0' + 52), // 0=52, 1=53, ..., 9=61
             '+' => Ok(62),
             '/' => Ok(63),
-            '=' => Ok(0),
+            '=' => Ok(0),                           // Padding character
             _ => Err(format!("Invalid Base64 character: {}", c)),
         }
     };
@@ -231,20 +242,26 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
     let mut result = Vec::new();
     let chars: Vec<char> = input.chars().collect();
     
+    // Process 4 characters at a time
+    // chunks(4) splits the Base64 string into groups of 4 characters
+    // Example: "SGVsbG8=" becomes chunks: ['S','G','V','s'], ['b','G','8','=']
     for chunk in chars.chunks(4) {
-        let b1 = char_to_value(chunk[0])?;
+        let b1 = char_to_value(chunk[0])?; // Each is a 6-bit value
         let b2 = char_to_value(chunk[1])?;
         let b3 = char_to_value(chunk[2])?;
         let b4 = char_to_value(chunk[3])?;
         
-        result.push((b1 << 2) | (b2 >> 4));
+        // Combine 4 × 6-bit values back into 3 × 8-bit bytes
+        result.push((b1 << 2) | (b2 >> 4)); // First byte: all of b1 + top 2 bits of b2
         
+        // Only decode second byte if third character isn't padding
         if chunk[2] != '=' {
-            result.push(((b2 & 0x0F) << 4) | (b3 >> 2));
+            result.push(((b2 & 0x0F) << 4) | (b3 >> 2)); // Second byte: bottom 4 bits of b2 + top 4 bits of b3
         }
         
+        // Only decode third byte if fourth character isn't padding
         if chunk[3] != '=' {
-            result.push(((b3 & 0x03) << 6) | b4);
+            result.push(((b3 & 0x03) << 6) | b4); // Third byte: bottom 2 bits of b3 + all of b4
         }
     }
     

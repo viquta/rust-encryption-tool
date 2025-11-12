@@ -2,6 +2,8 @@
 
 A simple command-line tool for encrypting and decrypting messages using XOR cipher with Base64 encoding.
 
+So far, I have worked through chapter 6 in "The Rust Programming Langauge", and have thus started to play-program a bit. A big portion of this code is AI-generated (Claude 4.5 as my Copilot). But it's simple and straightforward. It has most of the basics (I just don't really understand the chunk parts in the base64 functions).
+
 ## Features
 
 - 🔒 XOR cipher encryption/decryption
@@ -66,9 +68,10 @@ Ij0mJSI9NzUnOic=
 
 ⚠️ **This is a simple educational project.** XOR cipher is not secure for real-world encryption. Use established cryptographic libraries for actual security needs.
 
-## Requirements
+## Requirements for developing in Rust
 
 - Rust (2021 edition or later)
+(if you just want to play with the CLI then you don't need Rust...)
 
 ## License
 
